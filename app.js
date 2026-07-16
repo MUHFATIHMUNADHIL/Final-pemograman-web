@@ -25,6 +25,7 @@ async function init() {
 
   setupChat();
   setupModal();
+  setupCart();
 }
 
 function populateBrands() {
@@ -116,7 +117,15 @@ function openModal(w) {
         <li>Warna <span>${w.warna || "-"}</span></li>
         <li>Material <span>${w.material || "-"}</span></li>
       </ul>
+      <button class="btn btn-primary" id="addToCartBtn" style="width:100%;margin-top:16px;">
+        🛒 Tambah ke Keranjang
+      </button>
     </div>`;
+  document.getElementById("addToCartBtn").addEventListener("click", () => {
+    addToCart(w.id);
+    closeModal();
+    openCart();
+  });
   modal.hidden = false;
 }
 function closeModal() {
@@ -343,4 +352,188 @@ function parseBudget(q) {
   else if (/ribu|rb|k/.test(unit)) n *= 1_000;
   if (!n || n < 1000) return null;
   return n;
+}
+
+// ===================================================
+// ==============  KERANJANG & CHECKOUT  =============
+// ===================================================
+const CART_KEY = "chronostore_cart";
+let cart = loadCart();
+
+const cartBtn = document.getElementById("cartBtn");
+const cartDrawer = document.getElementById("cartDrawer");
+const cartOverlay = document.getElementById("cartOverlay");
+const cartItemsEl = document.getElementById("cartItems");
+const cartTotalEl = document.getElementById("cartTotal");
+const cartCountEl = document.getElementById("cartCount");
+const checkoutModal = document.getElementById("checkoutModal");
+
+function loadCart() {
+  try {
+    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+function persistCart() {
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  updateCartCount();
+}
+
+function setupCart() {
+  updateCartCount();
+  cartBtn.addEventListener("click", openCart);
+  document.getElementById("cartCloseBtn").addEventListener("click", closeCart);
+  cartOverlay.addEventListener("click", closeCart);
+  document.getElementById("checkoutBtn").addEventListener("click", startCheckout);
+  document.getElementById("checkoutClose").addEventListener("click", () => {
+    checkoutModal.hidden = true;
+  });
+  document.getElementById("checkoutForm").addEventListener("submit", submitOrder);
+}
+
+function addToCart(id) {
+  const item = cart.find((c) => String(c.id) === String(id));
+  if (item) item.qty += 1;
+  else cart.push({ id, qty: 1 });
+  persistCart();
+  renderCart();
+}
+
+function changeQty(id, delta) {
+  const item = cart.find((c) => String(c.id) === String(id));
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) cart = cart.filter((c) => String(c.id) !== String(id));
+  persistCart();
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter((c) => String(c.id) !== String(id));
+  persistCart();
+  renderCart();
+}
+
+function cartDetailed() {
+  return cart
+    .map((c) => {
+      const w = ALL.find((x) => String(x.id) === String(c.id));
+      return w ? { ...w, qty: c.qty } : null;
+    })
+    .filter(Boolean);
+}
+
+function cartTotal() {
+  return cartDetailed().reduce((sum, w) => sum + w.harga * w.qty, 0);
+}
+
+function updateCartCount() {
+  const n = cart.reduce((s, c) => s + c.qty, 0);
+  cartCountEl.textContent = n;
+}
+
+function openCart() {
+  renderCart();
+  cartOverlay.hidden = false;
+  cartDrawer.hidden = false;
+}
+function closeCart() {
+  cartOverlay.hidden = true;
+  cartDrawer.hidden = true;
+}
+
+function renderCart() {
+  const items = cartDetailed();
+  if (items.length === 0) {
+    cartItemsEl.innerHTML =
+      '<p class="cart-empty">Keranjang masih kosong.<br>Yuk pilih jam tangan favoritmu! 🕶️</p>';
+    cartTotalEl.textContent = formatRupiah(0);
+    return;
+  }
+  cartItemsEl.innerHTML = "";
+  for (const w of items) {
+    const el = document.createElement("div");
+    el.className = "cart-item";
+    el.innerHTML = `
+      <img src="${w.foto}" alt="" onerror="this.src='https://via.placeholder.com/60?text=?'">
+      <div class="ci-info">
+        <strong>${escapeHtml(w.merek)} ${escapeHtml(w.model)}</strong>
+        <small>${formatRupiah(w.harga)}</small>
+        <div class="qty-control">
+          <button data-act="dec">−</button>
+          <span>${w.qty}</span>
+          <button data-act="inc">+</button>
+        </div>
+      </div>
+      <button class="ci-remove" data-act="rm">Hapus</button>`;
+    el.querySelector('[data-act="inc"]').addEventListener("click", () => changeQty(w.id, 1));
+    el.querySelector('[data-act="dec"]').addEventListener("click", () => changeQty(w.id, -1));
+    el.querySelector('[data-act="rm"]').addEventListener("click", () => removeFromCart(w.id));
+    cartItemsEl.appendChild(el);
+  }
+  cartTotalEl.textContent = formatRupiah(cartTotal());
+}
+
+function startCheckout() {
+  const items = cartDetailed();
+  if (items.length === 0) {
+    alert("Keranjang masih kosong.");
+    return;
+  }
+  const summary = document.getElementById("checkoutSummary");
+  summary.innerHTML =
+    items
+      .map(
+        (w) =>
+          `<div class="cs-row"><span>${escapeHtml(w.merek)} ${escapeHtml(
+            w.model
+          )} × ${w.qty}</span><span>${formatRupiah(w.harga * w.qty)}</span></div>`
+      )
+      .join("") +
+    `<div class="cs-row cs-total"><span>Total</span><span>${formatRupiah(
+      cartTotal()
+    )}</span></div>`;
+  // reset form ke tampilan awal jika sebelumnya sukses
+  document.getElementById("checkoutForm").style.display = "";
+  closeCart();
+  checkoutModal.hidden = false;
+}
+
+function submitOrder(e) {
+  e.preventDefault();
+  const nama = document.getElementById("coName").value.trim();
+  const total = cartTotal();
+  const orderId = "INV-" + Date.now().toString().slice(-8);
+
+  // kosongkan keranjang
+  cart = [];
+  persistCart();
+
+  // tampilkan konfirmasi
+  const box = checkoutModal.querySelector(".modal-info");
+  box.innerHTML = `
+    <div class="order-success">
+      <div class="check">✅</div>
+      <h2>Pesanan Berhasil!</h2>
+      <p style="color:var(--muted)">Terima kasih, <strong>${escapeHtml(
+        nama
+      )}</strong>. Pesananmu sedang diproses.</p>
+      <ul class="spec-list" style="margin:18px 0;">
+        <li>No. Pesanan <span>${orderId}</span></li>
+        <li>Total Bayar <span>${formatRupiah(total)}</span></li>
+      </ul>
+      <button class="btn btn-primary" id="okOrder" style="width:100%;">Selesai</button>
+    </div>`;
+  document.getElementById("okOrder").addEventListener("click", () => {
+    checkoutModal.hidden = true;
+    box.innerHTML = savedCheckoutHtml; // pulihkan form untuk pesanan berikutnya
+    reattachCheckout();
+  });
+}
+
+// Simpan HTML form checkout asli agar bisa dipulihkan setelah sukses
+const savedCheckoutHtml = checkoutModal.querySelector(".modal-info").innerHTML;
+function reattachCheckout() {
+  document.getElementById("checkoutForm").addEventListener("submit", submitOrder);
 }
