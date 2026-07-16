@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — ChronoStore</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="brand"><span class="brand-logo">⌚</span> ChronoStore</a>
+      <nav class="nav-links">
+        <a href="index.html">Beranda</a>
+        <a href="admin.html" class="active">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="admin-layout">
+    <h1 style="margin-bottom:8px;">Panel Admin</h1>
+    <p style="color:var(--muted);margin-bottom:26px;">
+      Tambahkan jam tangan baru ke toko. Data tersimpan di browser (localStorage) dan langsung muncul di halaman beranda.
+    </p>
+
+    <div class="admin-grid">
+      <!-- Form tambah -->
+      <div class="panel">
+        <h2>➕ Tambah Jam Tangan</h2>
+        <div class="alert" id="alertBox"></div>
+        <form id="watchForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="merek">Merek *</label>
+              <input type="text" id="merek" required placeholder="mis. Rolex" />
+            </div>
+            <div class="form-group">
+              <label for="model">Model *</label>
+              <input type="text" id="model" required placeholder="mis. Submariner" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="warna">Warna</label>
+              <input type="text" id="warna" placeholder="mis. Hitam" />
+            </div>
+            <div class="form-group">
+              <label for="material">Material</label>
+              <input type="text" id="material" placeholder="mis. Stainless Steel" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="harga">Harga (Rp) *</label>
+            <input type="number" id="harga" required min="0" placeholder="mis. 15000000" />
+          </div>
+
+          <div class="form-group">
+            <label for="deskripsi">Deskripsi</label>
+            <textarea id="deskripsi" rows="3" placeholder="Deskripsi singkat jam tangan..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="foto">URL Foto</label>
+            <input type="url" id="foto" placeholder="https://..." />
+            <img id="imgPreview" class="img-preview" alt="Pratinjau foto" />
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;">Simpan Jam Tangan</button>
+        </form>
+      </div>
+
+      <!-- Daftar jam custom -->
+      <div class="panel">
+        <h2>🗂️ Jam Tangan yang Ditambahkan</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">
+          Hanya menampilkan item yang Anda tambahkan lewat panel ini.
+        </p>
+        <div class="admin-list" id="adminList"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

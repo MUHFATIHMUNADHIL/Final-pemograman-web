@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoStore — Toko Jam Tangan Premium</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-logo">⌚</span> ChronoStore
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="active">Beranda</a>
+        <a href="#produk">Produk</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Temukan Jam Tangan Impianmu</h1>
+      <p>Koleksi jam tangan premium dari merek ternama dunia. Cari, bandingkan, dan tanya asisten AI kami.</p>
+      <a href="#produk" class="btn btn-primary">Lihat Koleksi</a>
+    </div>
+  </section>
+
+  <main class="container" id="produk">
+    <div class="toolbar">
+      <input type="search" id="searchInput" placeholder="Cari merek atau model..." />
+      <select id="brandFilter">
+        <option value="">Semua Merek</option>
+      </select>
+      <select id="sortSelect">
+        <option value="default">Urutkan</option>
+        <option value="price-asc">Harga Termurah</option>
+        <option value="price-desc">Harga Termahal</option>
+        <option value="name-asc">Nama A-Z</option>
+      </select>
+    </div>
+
+    <p class="result-count" id="resultCount"></p>
+
+    <div class="grid" id="productGrid"></div>
+
+    <div class="load-more-wrap">
+      <button id="loadMoreBtn" class="btn btn-outline">Muat Lebih Banyak</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 ChronoStore. Dibuat untuk tugas Pemrograman Web.</p>
+  </footer>
+
+  <!-- Chatbot AI -->
+  <button id="chatToggle" class="chat-toggle" aria-label="Buka asisten AI">💬</button>
+  <div id="chatWindow" class="chat-window" hidden>
+    <div class="chat-header">
+      <span>🤖 Asisten AI ChronoStore</span>
+      <button id="chatClose" aria-label="Tutup">✕</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <form class="chat-input" id="chatForm">
+      <input type="text" id="chatText" placeholder="Tanya soal jam tangan..." autocomplete="off" />
+      <button type="submit">➤</button>
+    </form>
+  </div>
+
+  <!-- Modal detail produk -->
+  <div class="modal" id="detailModal" hidden>
+    <div class="modal-box">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
