@@ -15,18 +15,19 @@
   <header class="navbar">
     <div class="nav-inner">
       <a href="index.html" class="brand">Max luxury</a>
-      <div class="menu-links">
-        <div class="menu-dropdown">
-          <button type="button" class="menu-link">Jam Tangan <span class="caret">▾</span></button>
-          <div class="menu-dropdown-panel">
-            <a href="#produk">Semua Produk</a>
+      <div class="nav-right">
+        <div class="menu-links">
+          <div class="menu-dropdown">
+            <div class="menu-dropdown-panel">
+              <a href="#produk">Semua Produk</a>
+            </div>
           </div>
+          <a href="admin.html" class="menu-link">Admin</a>
         </div>
-        <a href="admin.html" class="menu-link">Admin</a>
+        <button id="cartBtn" class="cart-btn" aria-label="Buka keranjang">
+          🛒 <span class="cart-count" id="cartCount">0</span>
+        </button>
       </div>
-      <button id="cartBtn" class="cart-btn" aria-label="Buka keranjang">
-        🛒 <span class="cart-count" id="cartCount">0</span>
-      </button>
     </div>
   </header>
 
@@ -36,17 +37,17 @@
     <div class="hero-slides" id="heroSlides">
       <div class="hero-slide is-active" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')">
         <div class="hero-content">
-          <h1>Find Your Dream Watch</h1>
+          <h1>Luxury</h1>
         </div>
       </div>
       <div class="hero-slide" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1600003014637-ff82a275e191?q=80&w=1011&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); background-position: center 35%;">
         <div class="hero-content">
-          <h1>Diskon Spesial Bulan Ini</h1>
+          <h1>Reputation</h1>
         </div>
       </div>
       <div class="hero-slide" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=1600&q=80')">
         <div class="hero-content">
-          <h1>Garansi Resmi &amp; Original</h1>
+          <h1>watch</h1>
         </div>
       </div>
     </div>
@@ -57,7 +58,7 @@
   <!-- Featured: 5 jam tangan termahal -->
   <section class="section-block" id="featured">
     <div class="container">
-      <h2 class="section-heading">Jam Tangan <span>Termahal</span></h2>
+      <h2 class="section-heading">Most<span> Expensive</span></h2>
       <p class="section-sub">5 koleksi paling eksklusif dengan harga tertinggi di toko kami.</p>
       <div class="luxury-grid" id="topExpensiveGrid"></div>
     </div>
@@ -133,7 +134,7 @@
   </footer>
 
   <!-- Chatbot AI -->
-  <button id="chatToggle" class="chat-toggle" aria-label="Buka asisten AI">💬</button>
+  <button id="chatToggle" class="chat-toggle" aria-label="Buka asisten AI">AI</button>
   <div id="chatWindow" class="chat-window" hidden>
     <div class="chat-header">
       <span>🤖 Asisten AI Max Luxury</span>
