@@ -26,6 +26,34 @@ async function init() {
   setupChat();
   setupModal();
   setupCart();
+  setupHeroParticles();
+}
+
+// Partikel hero — floating sparks dengan breathing pulse (design NXA)
+function setupHeroParticles() {
+  const wrap = document.getElementById("heroParticles");
+  if (!wrap) return;
+  const COUNT = 40;
+  for (let i = 0; i < COUNT; i++) {
+    const size = Math.random() * 4 + 1;
+    const s = document.createElement("span");
+    s.className = "spark";
+    s.style.width = size + "px";
+    s.style.height = size + "px";
+    s.style.left = Math.random() * 100 + "%";
+    s.style.top = Math.random() * 100 + "%";
+    s.style.opacity = Math.random() * 0.5 + 0.1;
+    wrap.appendChild(s);
+    s.animate(
+      [{ opacity: 0.05 }, { opacity: Math.random() * 0.8 + 0.2 }, { opacity: 0.05 }],
+      {
+        duration: 2200 + Math.random() * 3800,
+        iterations: Infinity,
+        delay: Math.random() * 3000,
+        easing: "ease-in-out",
+      }
+    );
+  }
 }
 
 function populateBrands() {
