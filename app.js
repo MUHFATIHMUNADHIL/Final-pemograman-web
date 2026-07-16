@@ -112,7 +112,7 @@ function runSafely(fn, label) {
     dots[active].classList.add("is-active");
   }
 
-  setInterval(() => goTo((active + 1) % slides.length), 5000);
+  setInterval(() => goTo((active + 1) % slides.length), 2000);
 })();
 
 // Baris "Produk Baru": carousel horizontal dari data yang sama

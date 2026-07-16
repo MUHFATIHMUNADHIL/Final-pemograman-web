@@ -31,12 +31,14 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { background: var(--bg); }
+
 body {
   font-family: var(--font-body);
   background:
     radial-gradient(900px 520px at 82% -10%, rgba(194,166,51,0.08), transparent),
     radial-gradient(760px 520px at 0% 8%, rgba(60,120,170,0.12), transparent),
-    var(--bg);
+    transparent;
   color: var(--text);
   line-height: 1.6;
   font-size: 14px;
