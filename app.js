@@ -11,10 +11,52 @@ const sortSelect = document.getElementById("sortSelect");
 const resultCount = document.getElementById("resultCount");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 
+// Animasi mewah: elemen fade + naik saat pertama kali masuk viewport
+const revealObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          el.classList.add("reveal-in");
+          // Lepas class animasi setelah selesai, supaya transform bebas
+          // dipakai lagi oleh efek hover (animation forwards mengunci transform).
+          el.addEventListener(
+            "animationend",
+            () => el.classList.remove("reveal-pending", "reveal-in"),
+            { once: true }
+          );
+          revealObserver.unobserve(el);
+        }
+      });
+    }, { threshold: 0.15 })
+  : null;
+
+function observeReveal(el, index = 0) {
+  el.classList.add("reveal-pending");
+  el.style.animationDelay = `${Math.min(index, 6) * 0.035}s`;
+  if (!revealObserver) {
+    el.classList.add("reveal-in");
+    return;
+  }
+  revealObserver.observe(el);
+}
+
+function setupScrollReveal() {
+  document.querySelectorAll(".section-heading, .section-sub").forEach((el) => observeReveal(el));
+  document.querySelectorAll(".footer-col").forEach((el, i) => observeReveal(el, i));
+  const newsletterInner = document.querySelector(".footer-newsletter-inner");
+  if (newsletterInner) observeReveal(newsletterInner);
+}
+
 init();
 
 async function init() {
-  ALL = await loadAllWatches();
+  try {
+    ALL = await loadAllWatches();
+  } catch (err) {
+    console.error("Gagal memuat data jam tangan:", err);
+    ALL = [];
+  }
   populateBrands();
   applyFilters();
 
@@ -26,11 +68,167 @@ async function init() {
   enhanceSelect(sortSelect);
   enhanceSelect(brandFilter);
 
-  setupChat();
-  setupModal();
-  setupCart();
-  setupHeroParticles();
+  // Setiap bagian dijalankan terpisah agar satu error tidak menghentikan yang lain
+  runSafely(setupChat, "chat");
+  runSafely(setupModal, "modal");
+  runSafely(setupCart, "keranjang");
+  runSafely(setupHeroParticles, "partikel hero");
+  runSafely(setupNewArrivals, "produk baru");
+  runSafely(setupBrandLogos, "logo merek");
+  runSafely(setupTopExpensive, "jam tangan termahal");
+  runSafely(setupScrollReveal, "animasi scroll");
 }
+
+function runSafely(fn, label) {
+  try {
+    fn();
+  } catch (err) {
+    console.error(`Gagal memuat bagian "${label}":`, err);
+  }
+}
+
+// Carousel hero: autoplay gambar + dot navigasi
+(function setupHeroCarousel() {
+  const slides = document.querySelectorAll("#heroSlides .hero-slide");
+  const dotsWrap = document.getElementById("heroDots");
+  if (!slides.length || !dotsWrap) return;
+
+  let active = 0;
+  slides.forEach((_, i) => {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "hero-dot" + (i === 0 ? " is-active" : "");
+    dot.setAttribute("aria-label", `Slide ${i + 1}`);
+    dot.addEventListener("click", () => goTo(i));
+    dotsWrap.appendChild(dot);
+  });
+  const dots = dotsWrap.querySelectorAll(".hero-dot");
+
+  function goTo(i) {
+    slides[active].classList.remove("is-active");
+    dots[active].classList.remove("is-active");
+    active = i;
+    slides[active].classList.add("is-active");
+    dots[active].classList.add("is-active");
+  }
+
+  setInterval(() => goTo((active + 1) % slides.length), 5000);
+})();
+
+// Baris "Produk Baru": carousel horizontal dari data yang sama
+function setupNewArrivals() {
+  const row = document.getElementById("newArrivalsRow");
+  if (!row) return;
+  const picks = ALL.slice(0, 10);
+
+  if (picks.length === 0) {
+    row.innerHTML = '<p style="color:var(--muted);padding:20px 0;">Belum ada produk untuk ditampilkan. Cek koneksi ke jam-tangan.json.</p>';
+    return;
+  }
+
+  row.innerHTML = "";
+  picks.forEach((w, i) => row.appendChild(newArrivalCardEl(w, i)));
+
+  const prev = document.getElementById("newArrivalsPrev");
+  const next = document.getElementById("newArrivalsNext");
+  const step = () => row.clientWidth * 0.7;
+  if (prev) prev.addEventListener("click", () => row.scrollBy({ left: -step(), behavior: "smooth" }));
+  if (next) next.addEventListener("click", () => row.scrollBy({ left: step(), behavior: "smooth" }));
+}
+
+// Kartu produk baru bergaya badge diskon + harga coret
+function newArrivalCardEl(w, i) {
+  // Diskon semu untuk tampilan, dibuat konsisten berdasarkan id produk
+  const discount = [45, 35, 23, 45, 45, 23, 35, 45, 23, 45][i % 10];
+  const original = Math.round((w.harga / (1 - discount / 100)) / 1000) * 1000;
+
+  const el = document.createElement("article");
+  el.className = "new-card";
+  el.innerHTML = `
+    <div class="new-card-img">
+      <span class="new-card-badge">${discount}%</span>
+      <img src="${w.foto}" alt="${w.merek} ${w.model}" loading="lazy"
+           onerror="this.src='https://via.placeholder.com/300x300?text=No+Image'">
+    </div>
+    <p class="new-card-title">${w.merek} ${w.model}</p>
+    <p class="new-card-del">${formatRupiah(original)}</p>
+    <p class="new-card-price">${formatRupiah(w.harga)}</p>`;
+  el.addEventListener("click", () => openModal(w));
+  return el;
+}
+
+// 5 jam tangan termahal: grid dengan animasi mewah
+function setupTopExpensive() {
+  const wrap = document.getElementById("topExpensiveGrid");
+  if (!wrap) return;
+  const top5 = [...ALL].sort((a, b) => b.harga - a.harga).slice(0, 5);
+
+  if (top5.length === 0) {
+    wrap.innerHTML = '<p style="color:var(--muted);padding:20px 0;">Belum ada produk untuk ditampilkan.</p>';
+    return;
+  }
+
+  wrap.innerHTML = "";
+  top5.forEach((w, i) => {
+    const el = document.createElement("article");
+    el.className = "luxury-card";
+    el.innerHTML = `
+      <span class="luxury-rank">${i + 1}</span>
+      <div class="luxury-card-img">
+        <img src="${w.foto}" alt="${w.merek} ${w.model}" loading="lazy"
+             onerror="this.src='https://via.placeholder.com/300x300?text=No+Image'">
+      </div>
+      <p class="luxury-card-title">${w.merek} ${w.model}</p>
+      <p class="luxury-card-price">${formatRupiah(w.harga)}</p>`;
+    el.addEventListener("click", () => openModal(w));
+    observeReveal(el, i);
+    wrap.appendChild(el);
+  });
+}
+
+// Grid logo merek: dibuat otomatis dari daftar merek yang tersedia
+function setupBrandLogos() {
+  const wrap = document.getElementById("brandLogos");
+  if (!wrap) return;
+  const brands = [...new Set(ALL.map((w) => w.merek))].sort();
+  wrap.innerHTML = "";
+  for (const b of brands) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "brand-logo-item";
+    item.innerHTML = `<span class="avatar">${b.charAt(0)}</span><span>${b}</span>`;
+    item.addEventListener("click", () => {
+      brandFilter.value = b;
+      brandFilter.dispatchEvent(new Event("change"));
+      syncDropdownLabel(brandFilter);
+      document.getElementById("produk").scrollIntoView({ behavior: "smooth" });
+    });
+    wrap.appendChild(item);
+  }
+}
+
+// Sinkronkan tampilan dropdown kustom setelah <select> diubah lewat kode
+function syncDropdownLabel(select) {
+  const dd = select.previousElementSibling;
+  if (!dd || !dd.classList.contains("dropdown")) return;
+  const opt = select.options[select.selectedIndex];
+  dd.querySelector(".dropdown-trigger span").textContent = opt.textContent;
+  dd.querySelectorAll(".dropdown-option").forEach((o, i) => {
+    o.classList.toggle("selected", i === select.selectedIndex);
+  });
+}
+
+// Form newsletter (front-end saja, tanpa backend)
+(function setupNewsletter() {
+  const form = document.getElementById("newsletterForm");
+  if (!form) return;
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("newsletterEmail");
+    alert(`Terima kasih! Promo akan dikirim ke ${input.value}`);
+    form.reset();
+  });
+})();
 
 // Ubah <select> menjadi dropdown kustom bergaya tema
 function enhanceSelect(select) {
@@ -147,7 +345,11 @@ function applyFilters() {
 
 function renderMore() {
   const next = filtered.slice(shown, shown + PAGE);
-  for (const w of next) grid.appendChild(cardEl(w));
+  next.forEach((w, i) => {
+    const el = cardEl(w);
+    observeReveal(el, i);
+    grid.appendChild(el);
+  });
   shown += next.length;
 
   if (filtered.length === 0) {

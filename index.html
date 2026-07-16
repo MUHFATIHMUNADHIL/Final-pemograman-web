@@ -3,38 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChronoStore — Toko Jam Tangan Premium</title>
+  <title>Max Luxury</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <!-- Navbar utama: logo + menu + keranjang (satu baris) -->
   <header class="navbar">
     <div class="nav-inner">
-      <a href="index.html" class="brand">
-        <span class="brand-logo"></span> Max luxury
-      </a>
-      <nav class="nav-links">
-        <a href="index.html" class="active">Beranda</a>
-        <a href="#produk">Produk</a>
-        <a href="admin.html">Admin</a>
-        <button id="cartBtn" class="cart-btn" aria-label="Buka keranjang">
-          🛒 <span class="cart-count" id="cartCount">0</span>
-        </button>
-      </nav>
+      <a href="index.html" class="brand">Max luxury</a>
+      <div class="menu-links">
+        <div class="menu-dropdown">
+          <button type="button" class="menu-link">Jam Tangan <span class="caret">▾</span></button>
+          <div class="menu-dropdown-panel">
+            <a href="#produk">Semua Produk</a>
+          </div>
+        </div>
+        <a href="admin.html" class="menu-link">Admin</a>
+      </div>
+      <button id="cartBtn" class="cart-btn" aria-label="Buka keranjang">
+        🛒 <span class="cart-count" id="cartCount">0</span>
+      </button>
     </div>
   </header>
 
-  <section class="hero">
+  <!-- Hero: carousel gambar full-height -->
+  <section class="hero" id="heroCarousel">
     <div class="hero-particles" id="heroParticles" aria-hidden="true"></div>
-    <div class="hero-content">
-      <h1>Temukan Jam Tangan Impianmu</h1>
-      <p>Koleksi jam tangan premium dari merek ternama dunia. Cari, bandingkan, dan tanya asisten AI kami.</p>
-      <a href="#produk" class="btn btn-primary">Lihat Koleksi</a>
+    <div class="hero-slides" id="heroSlides">
+      <div class="hero-slide is-active" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')">
+        <div class="hero-content">
+          <h1>Find Your Dream Watch</h1>
+        </div>
+      </div>
+      <div class="hero-slide" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1600003014637-ff82a275e191?q=80&w=1011&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); background-position: center 35%;">
+        <div class="hero-content">
+          <h1>Diskon Spesial Bulan Ini</h1>
+        </div>
+      </div>
+      <div class="hero-slide" style="--slide-img: linear-gradient(160deg, rgba(6,11,25,0.55), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=1600&q=80')">
+        <div class="hero-content">
+          <h1>Garansi Resmi &amp; Original</h1>
+        </div>
+      </div>
+    </div>
+    <div class="hero-dots" id="heroDots" role="tablist" aria-label="Slide banner"></div>
+  </section>
+
+
+  <!-- Featured: 5 jam tangan termahal -->
+  <section class="section-block" id="featured">
+    <div class="container">
+      <h2 class="section-heading">Jam Tangan <span>Termahal</span></h2>
+      <p class="section-sub">5 koleksi paling eksklusif dengan harga tertinggi di toko kami.</p>
+      <div class="luxury-grid" id="topExpensiveGrid"></div>
     </div>
   </section>
+
+
 
   <main class="container" id="produk">
     <div class="toolbar">
@@ -60,14 +89,54 @@
   </main>
 
   <footer class="footer">
-    <p>© 2026 ChronoStore. Dibuat untuk tugas Pemrograman Web.</p>
+    <div class="footer-newsletter">
+      <div class="container footer-newsletter-inner">
+        <div>
+          <strong>BERGABUNG DENGAN NEWSLETTER KAMI</strong>
+          <p>Dapatkan promo spesial langsung ke email Anda</p>
+        </div>
+        <form id="newsletterForm" class="newsletter-form">
+          <input type="email" id="newsletterEmail" required placeholder="Alamat email Anda" />
+          <button type="submit" class="btn btn-primary">Kirim</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="container footer-columns">
+      <div class="footer-col">
+        <h4>Max Luxury</h4>
+        <a href="#about">Tentang Kami</a>
+        <a href="#produk">Katalog Produk</a>
+        <a href="admin.html">Admin</a>
+        <a href="#brands">Merek Resmi</a>
+      </div>
+      <div class="footer-col">
+        <h4>Belanja Dengan Kami</h4>
+        <a href="#produk">Cara Berbelanja</a>
+        <a href="#">Syarat &amp; Ketentuan</a>
+        <a href="#">Konfirmasi Pembayaran</a>
+      </div>
+      <div class="footer-col">
+        <h4>Kontak</h4>
+        <span>📱 WhatsApp: 08xx-xxxx-xxxx</span>
+        <span>✉️ hello@maxluxury.id</span>
+      </div>
+      <div class="footer-col">
+        <h4>Ikuti Kami</h4>
+        <span>📷 Instagram</span>
+        <span>📘 Facebook</span>
+        <span>🛍️ Shopee &amp; Tokopedia</span>
+      </div>
+    </div>
+
+    <p class="footer-copyright">© 2026 Max Luxury. Dibuat untuk tugas Pemrograman Web.</p>
   </footer>
 
   <!-- Chatbot AI -->
   <button id="chatToggle" class="chat-toggle" aria-label="Buka asisten AI">💬</button>
   <div id="chatWindow" class="chat-window" hidden>
     <div class="chat-header">
-      <span>🤖 Asisten AI ChronoStore</span>
+      <span>🤖 Asisten AI Max Luxury</span>
       <button id="chatClose" aria-label="Tutup">✕</button>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
