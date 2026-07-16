@@ -23,10 +23,63 @@ async function init() {
   sortSelect.addEventListener("change", applyFilters);
   loadMoreBtn.addEventListener("click", () => renderMore());
 
+  enhanceSelect(sortSelect);
+  enhanceSelect(brandFilter);
+
   setupChat();
   setupModal();
   setupCart();
   setupHeroParticles();
+}
+
+// Ubah <select> menjadi dropdown kustom bergaya tema
+function enhanceSelect(select) {
+  const dd = document.createElement("div");
+  dd.className = "dropdown";
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "dropdown-trigger";
+  const label = document.createElement("span");
+  label.textContent = select.options[select.selectedIndex].textContent;
+  trigger.append(label, Object.assign(document.createElement("span"), {
+    className: "arrow",
+    textContent: "▼",
+  }));
+
+  const menu = document.createElement("div");
+  menu.className = "dropdown-menu";
+
+  [...select.options].forEach((opt) => {
+    const item = document.createElement("div");
+    item.className = "dropdown-option" + (opt.selected ? " selected" : "");
+    item.textContent = opt.textContent;
+    item.addEventListener("click", () => {
+      select.value = opt.value;
+      select.dispatchEvent(new Event("change"));
+      label.textContent = opt.textContent;
+      menu.querySelectorAll(".dropdown-option").forEach((o) => o.classList.remove("selected"));
+      item.classList.add("selected");
+      dd.classList.remove("open");
+    });
+    menu.appendChild(item);
+  });
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".dropdown.open").forEach((o) => {
+      if (o !== dd) o.classList.remove("open");
+    });
+    dd.classList.toggle("open");
+  });
+
+  // Sisipkan dropdown & sembunyikan select asli
+  select.parentNode.insertBefore(dd, select);
+  dd.append(trigger, menu);
+  select.style.display = "none";
+
+  // Tutup saat klik di luar
+  document.addEventListener("click", () => dd.classList.remove("open"));
 }
 
 // Partikel hero — floating sparks dengan breathing pulse (design NXA)
