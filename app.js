@@ -156,6 +156,26 @@ function setupChat() {
     text.value = "";
     setTimeout(() => respond(q), 250);
   });
+
+  // Klik mini-kartu di dalam chat -> buka detail produk
+  messages.addEventListener("click", (e) => {
+    const card = e.target.closest(".mini-card");
+    if (card) openById(card.dataset.id);
+  });
+  messages.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const card = e.target.closest(".mini-card");
+    if (card) {
+      e.preventDefault();
+      openById(card.dataset.id);
+    }
+  });
+}
+
+// Buka modal produk berdasarkan id (id bisa angka atau string custom)
+function openById(id) {
+  const w = ALL.find((x) => String(x.id) === String(id));
+  if (w) openModal(w);
 }
 
 const messages = document.getElementById("chatMessages");
@@ -180,7 +200,7 @@ function escapeHtml(s) {
 }
 
 function miniCard(w) {
-  return `<div class="mini-card">
+  return `<div class="mini-card" data-id="${w.id}" role="button" tabindex="0" title="Lihat detail">
     <img src="${w.foto}" alt="" onerror="this.style.visibility='hidden'">
     <div><strong>${escapeHtml(w.merek)} ${escapeHtml(w.model)}</strong><br>
     <small>${formatRupiah(w.harga)}</small></div></div>`;
