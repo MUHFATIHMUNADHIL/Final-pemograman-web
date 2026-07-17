@@ -429,11 +429,13 @@ function setupChat() {
     win.hidden = !win.hidden;
     if (!win.hidden && !form.dataset.greeted) {
       botSay(
-        "Halo! 👋 Saya asisten AI ChronoStore. Saya bisa bantu:\n" +
-          "• Rekomendasi sesuai budget (mis. \"budget 5 juta\")\n" +
-          "• Cari merek (mis. \"ada Rolex?\")\n" +
-          "• Jam termurah / termahal\n" +
-          "• Info bahan & warna\n\nApa yang bisa saya bantu?"
+        "Halo! 👋 Selamat datang di ChronoStore! Saya asisten AI yang siap bantu Anda menemukan jam tangan idaman. Saya bisa:\n" +
+          "• 🎯 Rekomendasi kombinasi (mis. \"rolex warna hitam budget 500 juta\")\n" +
+          "• 💰 Rentang harga (mis. \"antara 5 juta sampai 20 juta\")\n" +
+          "• 🔍 Cari merek, warna, atau bahan (santai aja kalau typo, saya tetap mengerti)\n" +
+          "• 🏆 Jam termurah / termahal\n" +
+          "• ⚖️ Bandingkan 2 jam (mis. \"bandingkan seiko dan casio\")\n\n" +
+          "Ceritakan saja apa yang Anda cari, saya bantu carikan yang paling pas! 😊"
       );
       form.dataset.greeted = "1";
     }
@@ -495,104 +497,347 @@ function miniCard(w) {
   return `<div class="mini-card" data-id="${w.id}" role="button" tabindex="0" title="Lihat detail">
     <img src="${w.foto}" alt="" onerror="this.style.visibility='hidden'">
     <div><strong>${escapeHtml(w.merek)} ${escapeHtml(w.model)}</strong><br>
-    <small>${formatRupiah(w.harga)}</small></div></div>`;
+    <small>${formatRupiah(w.harga)}</small><br>
+    <small>${escapeHtml(w.warna || "-")} • ${escapeHtml(w.material || "-")}</small></div></div>`;
 }
 
-// Otak asisten AI: analisis maksud pengguna
+// Tampilkan deskripsi lengkap satu produk sebagai teks tambahan yang lebih detail
+function detailNote(w) {
+  return w && w.deskripsi ? `<br><small><em>${escapeHtml(w.deskripsi)}</em></small>` : "";
+}
+
+// Hasil pencarian terakhir, dipakai untuk pertanyaan lanjutan ("lebih banyak")
+let lastResults = [];
+
+// Jarak Levenshtein sederhana untuk menangani typo (mis. "rolx" ~ "rolex")
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Cari item di `list` yang salah satu katanya paling mirip kata dalam `q` (toleransi typo)
+function fuzzyFind(q, list) {
+  const tokens = q.split(/[^a-z0-9]+/i).filter((t) => t.length >= 3);
+  let best = null;
+  let bestDist = Infinity;
+  for (const item of list) {
+    const words = item.toLowerCase().split(/\s+/);
+    for (const tok of tokens) {
+      for (const w of words) {
+        if (Math.abs(w.length - tok.length) > 2) continue;
+        const dist = levenshtein(tok, w);
+        const threshold = w.length <= 4 ? 1 : 2;
+        if (dist <= threshold && dist < bestDist) {
+          bestDist = dist;
+          best = item;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+// Ubah pecahan angka+satuan ("5 juta", "10jt", "500 ribu") jadi nilai rupiah
+function parseAmount(str) {
+  const m = str.match(/(\d[\d.,]*)\s*(milyar|miliar|juta|jt|ribu|rb|k)?/);
+  if (!m) return null;
+  let n = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+  const unit = m[2] || "";
+  if (/milyar|miliar/.test(unit)) n *= 1_000_000_000;
+  else if (/juta|jt/.test(unit)) n *= 1_000_000;
+  else if (/ribu|rb|k/.test(unit)) n *= 1_000;
+  if (!n) return null;
+  return n;
+}
+
+// Deteksi rentang harga ("antara 5 juta sampai 10 juta"), batas maksimal ("maksimal 5 juta"),
+// atau harga target/perkiraan ("50 juta", "sekitar 50 juta") yang akan dicari yang paling mendekati
+function parseBudgetRange(q) {
+  const range = q.match(
+    /(?:antara|dari)?\s*(\d[\d.,]*\s*(?:milyar|miliar|juta|jt|ribu|rb|k)?)\s*(?:sampai|hingga|s\.?d\.?|ke|-)\s*(\d[\d.,]*\s*(?:milyar|miliar|juta|jt|ribu|rb|k)?)/
+  );
+  if (range) {
+    const min = parseAmount(range[1]);
+    const max = parseAmount(range[2]);
+    if (min !== null && max !== null) {
+      return { min: Math.min(min, max), max: Math.max(min, max), mode: "range" };
+    }
+  }
+  const single = q.match(
+    /(\d[\d.,]*)\s*(milyar|miliar|juta|jt|ribu|rb|k)?/
+  );
+  if (single) {
+    const isMaxKeyword = /(maksimal|\bmax\b|kurang dari|dibawah|di bawah)/.test(q);
+    const hasBudgetContext =
+      isMaxKeyword ||
+      /(budget|sekitar|harga|punya uang|dana|modal|kira-kira|kurang lebih)/.test(q) ||
+      single[2];
+    if (hasBudgetContext) {
+      const n = parseAmount(single[0]);
+      if (n !== null && n >= 1000) {
+        return isMaxKeyword ? { max: n, mode: "max" } : { target: n, mode: "target" };
+      }
+    }
+  }
+  return null;
+}
+
+// Cari satu produk berdasarkan teks bebas (merek+model, atau cuma merek) untuk fitur bandingkan
+function findBestMatch(text) {
+  const t = text.toLowerCase();
+  const found = ALL.find((w) => `${w.merek} ${w.model}`.toLowerCase().includes(t));
+  if (found) return found;
+  const brandList = [...new Set(ALL.map((w) => w.merek))];
+  const brand =
+    brandList.find((b) => t.includes(b.toLowerCase())) || fuzzyFind(t, brandList);
+  if (brand) {
+    return [...ALL.filter((w) => w.merek === brand)].sort(
+      (a, b) => a.harga - b.harga
+    )[0];
+  }
+  return null;
+}
+
+// Otak asisten AI: analisis maksud pengguna (mendukung kombinasi kriteria & toleransi typo)
 function respond(qRaw) {
-  const q = qRaw.toLowerCase();
+  const q = qRaw.toLowerCase().trim();
 
   // Sapaan
   if (/\b(halo|hai|hi|hello|pagi|siang|sore|malam)\b/.test(q)) {
-    return botSay("Halo juga! 😊 Mau cari jam tangan seperti apa hari ini?");
+    return botSay(
+      "Halo juga! 😊 Senang bisa mengobrol dengan Anda. Mau cari jam tangan seperti apa hari ini? Boleh sebutkan merek, warna, bahan, atau budget yang Anda inginkan, nanti saya carikan yang paling pas."
+    );
   }
 
   // Terima kasih
   if (/(terima kasih|makasih|thanks|thx)/.test(q)) {
-    return botSay("Sama-sama! Senang bisa membantu. 🙏");
+    return botSay(
+      "Sama-sama! 🙏 Senang bisa membantu. Kalau masih ada yang ingin dicari atau ditanyakan, jangan sungkan ya!"
+    );
+  }
+
+  // Bantuan
+  if (/\b(bantuan|help|bisa apa|fitur)\b/.test(q)) {
+    return botSay(
+      "Dengan senang hati! Saya bisa bantu:\n" +
+        "• 🎯 Rekomendasi kombinasi (mis. \"rolex warna hitam budget 500 juta\")\n" +
+        "• 💰 Rentang harga (mis. \"antara 5 juta sampai 20 juta\")\n" +
+        "• 🏆 Jam termurah / termahal, bisa dikombinasi merek (mis. \"omega termahal\")\n" +
+        "• ⚖️ Bandingkan 2 jam lengkap dengan analisisnya (mis. \"bandingkan rolex dan omega\")\n" +
+        "• 📋 Daftar semua merek/warna/bahan yang tersedia\n\n" +
+        "Tinggal ketik saja seperti mengobrol biasa, saya akan coba pahami maksud Anda 😊"
+    );
+  }
+
+  // Daftar merek / warna / bahan yang tersedia
+  if (/(merek|brand)\b.*(apa saja|tersedia|ada apa)/.test(q)) {
+    const brands = [...new Set(ALL.map((w) => w.merek))].sort();
+    return botSay(
+      `Kami punya ${brands.length} merek pilihan, di antaranya: ${brands.join(", ")}. Ada merek favorit yang ingin dicoba? 😊`
+    );
+  }
+  if (/warna\b.*(apa saja|tersedia|ada apa)/.test(q)) {
+    const colors = [...new Set(ALL.map((w) => w.warna).filter(Boolean))].sort();
+    return botSay(`Untuk warna, tersedia pilihan: ${colors.join(", ")}. Warna mana yang paling Anda sukai? 🎨`);
+  }
+  if (/(bahan|material)\b.*(apa saja|tersedia|ada apa)/.test(q)) {
+    const materials = [...new Set(ALL.map((w) => w.material).filter(Boolean))].sort();
+    return botSay(`Bahan yang tersedia antara lain: ${materials.join(", ")}. Mau saya carikan yang bahannya sesuai selera Anda? ⌨️`);
+  }
+
+  // Perbandingan dua produk: "bandingkan X dan Y" / "X vs Y"
+  const cmp = q.match(/(?:bandingkan|compare)\s+(.+?)\s+(?:dan|dengan|vs\.?|,)\s+(.+)/);
+  if (cmp) {
+    const a = findBestMatch(cmp[1].trim());
+    const b = findBestMatch(cmp[2].trim());
+    if (a && b && a.id !== b.id) {
+      const diff = Math.abs(a.harga - b.harga);
+      const cheaper = a.harga <= b.harga ? a : b;
+      const pricier = a.harga <= b.harga ? b : a;
+      const sameMaterial = (a.material || "").toLowerCase() === (b.material || "").toLowerCase();
+      pushMsg(
+        "Tentu, ini perbandingannya! ⚖️" +
+          miniCard(a) +
+          miniCard(b) +
+          detailNote(a) +
+          detailNote(b) +
+          `<br><br>💡 <strong>${escapeHtml(cheaper.merek + " " + cheaper.model)}</strong> lebih hemat ${formatRupiah(diff)} dibanding <strong>${escapeHtml(pricier.merek + " " + pricier.model)}</strong>.` +
+          (sameMaterial
+            ? " Bahannya sama-sama serupa, jadi tinggal sesuaikan dengan selera warna dan budget Anda! 😊"
+            : " Bahan keduanya berbeda, jadi bisa disesuaikan dengan gaya yang Anda cari."),
+        "bot"
+      );
+      return;
+    }
+    botSay(
+      "Hmm, maaf saya belum menemukan salah satu (atau kedua) produk yang ingin dibandingkan 🙏. Coba sebutkan nama merek atau model yang lebih spesifik ya."
+    );
+    return;
   }
 
   // Jumlah / berapa produk
   if (/(berapa|jumlah).*(jam|produk|barang|stok)/.test(q)) {
     const brands = new Set(ALL.map((w) => w.merek)).size;
     return botSay(
-      `Saat ini tersedia ${ALL.length} jam tangan dari ${brands} merek berbeda.`
+      `Saat ini ChronoStore punya ${ALL.length} jam tangan pilihan dari ${brands} merek berbeda 😊. Mau saya bantu cari yang sesuai budget atau merek favorit Anda?`
     );
   }
 
-  // Termurah
-  if (/(termurah|paling murah|murah)/.test(q)) {
-    const w = [...ALL].sort((a, b) => a.harga - b.harga)[0];
-    pushMsg(
-      "Jam tangan termurah kami:" + miniCard(w),
-      "bot"
+  // Kumpulkan semua kriteria yang disebut dalam satu kalimat (bisa gabungan merek+warna+bahan+harga)
+  const brandList = [...new Set(ALL.map((w) => w.merek))];
+  const colorList = [...new Set(ALL.map((w) => w.warna).filter(Boolean))];
+  const materialList = [...new Set(ALL.map((w) => w.material).filter(Boolean))];
+
+  const brandHit =
+    brandList.find((b) => q.includes(b.toLowerCase())) || fuzzyFind(q, brandList);
+  const colorHit =
+    colorList.find((c) => q.includes(c.toLowerCase())) || fuzzyFind(q, colorList);
+  const materialHit =
+    materialList.find((m) => q.includes(m.toLowerCase())) || fuzzyFind(q, materialList);
+  const budget = parseBudgetRange(q);
+
+  let scope = ALL;
+  const applied = [];
+  if (brandHit) {
+    scope = scope.filter((w) => w.merek === brandHit);
+    applied.push(`merek ${brandHit}`);
+  }
+  if (colorHit) {
+    scope = scope.filter((w) => (w.warna || "").toLowerCase() === colorHit.toLowerCase());
+    applied.push(`warna ${colorHit}`);
+  }
+  if (materialHit) {
+    scope = scope.filter(
+      (w) => (w.material || "").toLowerCase() === materialHit.toLowerCase()
     );
-    return;
+    applied.push(`bahan ${materialHit}`);
+  }
+  if (budget && (budget.mode === "range" || budget.mode === "max")) {
+    if (budget.min != null) {
+      scope = scope.filter((w) => w.harga >= budget.min);
+      applied.push(`min ${formatRupiah(budget.min)}`);
+    }
+    if (budget.max != null) {
+      scope = scope.filter((w) => w.harga <= budget.max);
+      applied.push(`maks ${formatRupiah(budget.max)}`);
+    }
   }
 
-  // Termahal
-  if (/(termahal|paling mahal|mewah|termewah)/.test(q)) {
-    const w = [...ALL].sort((a, b) => b.harga - a.harga)[0];
-    pushMsg("Jam tangan termahal kami:" + miniCard(w), "bot");
-    return;
-  }
+  const wantsCheapest = /(termurah|paling murah|\bmurah\b)/.test(q);
+  const wantsPriciest = /(termahal|paling mahal|mewah|termewah)/.test(q);
 
-  // Budget / harga di bawah X
-  const budget = parseBudget(q);
-  if (budget !== null) {
-    const opsi = ALL.filter((w) => w.harga <= budget)
-      .sort((a, b) => b.harga - a.harga)
-      .slice(0, 3);
-    if (opsi.length === 0) {
-      const termurah = [...ALL].sort((a, b) => a.harga - b.harga)[0];
-      pushMsg(
-        `Maaf, belum ada yang di bawah ${formatRupiah(budget)}. ` +
-          `Yang termurah:` + miniCard(termurah),
-        "bot"
+  // Harga target/perkiraan ("50 juta", "sekitar 50 juta"): cari yang harganya paling mendekati,
+  // bukan sekadar di bawah nilai tersebut
+  if (budget && budget.mode === "target" && !wantsCheapest && !wantsPriciest) {
+    if (scope.length === 0) {
+      botSay(
+        `Maaf ya, saya belum menemukan jam yang cocok dengan ${applied.join(", ") || "kriteria itu"} 🙏. Coba longgarkan sedikit kriterianya, saya bantu carikan yang lain.`
       );
       return;
     }
-    pushMsg(
-      `Rekomendasi dengan budget ${formatRupiah(budget)}:` +
-        opsi.map(miniCard).join(""),
-      "bot"
-    );
-    return;
-  }
-
-  // Pencarian merek
-  const brandHit = [...new Set(ALL.map((w) => w.merek))].find((b) =>
-    q.includes(b.toLowerCase())
-  );
-  if (brandHit) {
-    const list = ALL.filter((w) => w.merek === brandHit);
-    const sample = list.slice(0, 3);
-    pushMsg(
-      `Ya, kami punya ${list.length} model ${brandHit}. Contohnya:` +
-        sample.map(miniCard).join(""),
-      "bot"
-    );
-    return;
-  }
-
-  // Material
-  const materialHit = [
-    "titanium",
-    "stainless steel",
-    "keramik",
-    "emas",
-    "kulit",
-    "karet",
-    "rose gold",
-  ].find((m) => q.includes(m));
-  if (materialHit) {
-    const list = ALL.filter((w) =>
-      (w.material || "").toLowerCase().includes(materialHit)
-    );
-    if (list.length) {
+    const withDiff = scope
+      .map((w) => ({ w, diff: Math.abs(w.harga - budget.target) }))
+      .sort((a, b) => a.diff - b.diff);
+    const exactCount = withDiff.filter((x) => x.diff === 0).length;
+    const top5 = withDiff.slice(0, 5).map((x) => x.w);
+    lastResults = withDiff.map((x) => x.w);
+    const extraLabel = applied.length ? ` (${applied.join(", ")})` : "";
+    if (exactCount > 0) {
       pushMsg(
-        `Ada ${list.length} jam dengan material ${materialHit}. Contoh:` +
-          list.slice(0, 3).map(miniCard).join(""),
+        `Kabar baik! 🎉 Ditemukan ${exactCount} jam dengan harga tepat ${formatRupiah(budget.target)}${extraLabel}:` +
+          top5.map(miniCard).join("") +
+          detailNote(top5[0]),
+        "bot"
+      );
+    } else {
+      pushMsg(
+        `Belum ada yang harganya pas ${formatRupiah(budget.target)}${extraLabel}, tapi ini pilihan yang paling mendekati ya 👇:` +
+          top5.map(miniCard).join("") +
+          detailNote(top5[0]),
+        "bot"
+      );
+    }
+    return;
+  }
+
+  if (wantsCheapest || wantsPriciest) {
+    if (scope.length === 0) {
+      botSay(
+        `Maaf, belum ada jam yang cocok dengan ${applied.join(", ") || "kriteria itu"} untuk dicek harganya 🙏. Coba kriteria lain, ya?`
+      );
+      return;
+    }
+    const sorted = [...scope].sort((a, b) =>
+      wantsCheapest ? a.harga - b.harga : b.harga - a.harga
+    );
+    const top5 = sorted.slice(0, 5);
+    lastResults = sorted;
+    const label = applied.length ? ` untuk ${applied.join(", ")}` : "";
+    pushMsg(
+      `Ini ${top5.length} jam ${wantsCheapest ? "termurah" : "termahal"}${label} yang saya temukan 😊:` +
+        top5.map(miniCard).join("") +
+        detailNote(top5[0]),
+      "bot"
+    );
+    return;
+  }
+
+  if (applied.length > 0) {
+    scope = [...scope].sort((a, b) => a.harga - b.harga);
+    lastResults = scope;
+    if (scope.length === 0) {
+      botSay(
+        `Maaf, saya belum menemukan jam yang cocok dengan ${applied.join(", ")} 🙏. Coba longgarkan salah satu kriteria, misalnya budget dinaikkan sedikit atau warnanya lebih fleksibel, ya!`
+      );
+      return;
+    }
+    const intro = scope.length === 1 ? "Ketemu satu yang pas nih!" : `Asyik, ada ${scope.length} pilihan yang cocok`;
+    pushMsg(
+      `${intro} dengan ${applied.join(", ")} 🔎:` +
+        scope.slice(0, 5).map(miniCard).join("") +
+        detailNote(scope.length === 1 ? scope[0] : null) +
+        (scope.length > 5
+          ? `<br><small>...dan ${scope.length - 5} lainnya, ketik "lainnya" untuk lihat lebih banyak ya 😉</small>`
+          : ""),
+      "bot"
+    );
+    return;
+  }
+
+  // Follow-up sederhana terhadap hasil pencarian sebelumnya
+  if (/(lainnya|lebih banyak|selanjutnya)/.test(q) && lastResults.length > 5) {
+    pushMsg(
+      `Baik, ini pilihan lainnya untuk Anda 👇:` + lastResults.slice(5, 10).map(miniCard).join(""),
+      "bot"
+    );
+    return;
+  }
+
+  // Pencarian langsung berdasarkan nama produk (merek+model), tidak peduli huruf besar/kecil
+  if (q.length >= 3) {
+    const modelMatches = ALL.filter((w) =>
+      `${w.merek} ${w.model}`.toLowerCase().includes(q)
+    );
+    if (modelMatches.length > 0) {
+      lastResults = modelMatches;
+      pushMsg(
+        `Ditemukan ${modelMatches.length} jam yang cocok dengan "${escapeHtml(qRaw.trim())}" 🔍:` +
+          modelMatches.slice(0, 5).map(miniCard).join("") +
+          detailNote(modelMatches.length === 1 ? modelMatches[0] : null) +
+          (modelMatches.length > 5
+            ? `<br><small>...dan ${modelMatches.length - 5} lainnya, coba ketik "lainnya" untuk lihat lagi.</small>`
+            : ""),
         "bot"
       );
       return;
@@ -602,39 +847,29 @@ function respond(qRaw) {
   // Rekomendasi umum
   if (/(rekomendasi|saran|bagus|recommend)/.test(q)) {
     const pick = [...ALL].sort(() => Math.random() - 0.5).slice(0, 3);
+    lastResults = pick;
     pushMsg(
-      "Beberapa pilihan menarik untuk Anda:" + pick.map(miniCard).join(""),
+      "Beberapa pilihan menarik yang mungkin Anda suka ✨:" + pick.map(miniCard).join(""),
       "bot"
     );
     return;
   }
 
-  // Fallback
-  botSay(
-    "Maaf, saya belum paham. 🤔 Coba tanya seperti:\n" +
-      "• \"budget 10 juta\"\n" +
-      "• \"ada Seiko?\"\n" +
-      "• \"jam termahal\"\n" +
-      "• \"jam bahan titanium\""
-  );
-}
-
-// Ubah teks budget menjadi angka rupiah
-function parseBudget(q) {
-  // format "5 juta", "10jt", "500 ribu", "2 milyar"
-  const m = q.match(/(\d[\d.,]*)\s*(milyar|miliar|juta|jt|ribu|rb|k)?/);
-  if (!m) return null;
-  if (!/(budget|bawah|maksimal|max|kurang dari|dibawah|sekitar|harga|punya uang|dana|modal)/.test(q) &&
-      !m[2]) {
-    return null;
+  // Fallback: kalau ada nama merek yang mirip (typo), tawarkan koreksi
+  const maybeBrand = fuzzyFind(q, brandList);
+  if (maybeBrand) {
+    botSay(`Hmm, apakah maksud Anda "${maybeBrand}"? 🤔 Coba ketik ulang, mis. "ada ${maybeBrand}?"`);
+    return;
   }
-  let n = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
-  const unit = m[2] || "";
-  if (/milyar|miliar/.test(unit)) n *= 1_000_000_000;
-  else if (/juta|jt/.test(unit)) n *= 1_000_000;
-  else if (/ribu|rb|k/.test(unit)) n *= 1_000;
-  if (!n || n < 1000) return null;
-  return n;
+
+  botSay(
+    "Maaf, saya belum paham maksud Anda 🙏. Tapi tenang, coba tanya dengan gaya seperti ini ya:\n" +
+      "• \"rolex warna hitam budget 500 juta\"\n" +
+      "• \"antara 5 juta sampai 20 juta\"\n" +
+      "• \"bandingkan seiko dan casio\"\n" +
+      "• \"jam bahan titanium\"\n\n" +
+      "Saya siap bantu carikan yang paling pas untuk Anda! 😊"
+  );
 }
 
 // ===================================================
