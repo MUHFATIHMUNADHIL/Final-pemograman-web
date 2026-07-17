@@ -740,34 +740,25 @@ function respond(qRaw) {
   // Harga target/perkiraan ("50 juta", "sekitar 50 juta"): cari yang harganya paling mendekati,
   // bukan sekadar di bawah nilai tersebut
   if (budget && budget.mode === "target" && !wantsCheapest && !wantsPriciest) {
-    if (scope.length === 0) {
+    // Rentang yang diizinkan: tidak boleh kurang dari harga target, boleh lebih
+    // tapi maksimal 1 juta di atasnya (target s.d. target + 1 juta)
+    const rangeMax = budget.target + 1_000_000;
+    const inRange = scope.filter((w) => w.harga >= budget.target && w.harga <= rangeMax);
+    const extraLabel = applied.length ? ` (${applied.join(", ")})` : "";
+    if (inRange.length === 0) {
       botSay(
-        `Maaf ya, saya belum menemukan jam yang cocok dengan ${applied.join(", ") || "kriteria itu"} 🙏. Coba longgarkan sedikit kriterianya, saya bantu carikan yang lain.`
+        `Maaf ya, saya belum menemukan jam dengan harga antara ${formatRupiah(budget.target)} - ${formatRupiah(rangeMax)}${extraLabel} 🙏. Coba longgarkan sedikit kriterianya, saya bantu carikan yang lain.`
       );
       return;
     }
-    const withDiff = scope
-      .map((w) => ({ w, diff: Math.abs(w.harga - budget.target) }))
-      .sort((a, b) => a.diff - b.diff);
-    const exactCount = withDiff.filter((x) => x.diff === 0).length;
-    const top5 = withDiff.slice(0, 5).map((x) => x.w);
-    lastResults = withDiff.map((x) => x.w);
-    const extraLabel = applied.length ? ` (${applied.join(", ")})` : "";
-    if (exactCount > 0) {
-      pushMsg(
-        `Kabar baik! 🎉 Ditemukan ${exactCount} jam dengan harga tepat ${formatRupiah(budget.target)}${extraLabel}:` +
-          top5.map(miniCard).join("") +
-          detailNote(top5[0]),
-        "bot"
-      );
-    } else {
-      pushMsg(
-        `Belum ada yang harganya pas ${formatRupiah(budget.target)}${extraLabel}, tapi ini pilihan yang paling mendekati ya 👇:` +
-          top5.map(miniCard).join("") +
-          detailNote(top5[0]),
-        "bot"
-      );
-    }
+    const best = [...inRange].sort((a, b) => a.harga - b.harga)[0];
+    lastResults = [best];
+    pushMsg(
+      `Kabar baik! 🎉 Ditemukan jam dengan harga antara ${formatRupiah(budget.target)} - ${formatRupiah(rangeMax)}${extraLabel}:` +
+        miniCard(best) +
+        detailNote(best),
+      "bot"
+    );
     return;
   }
 
