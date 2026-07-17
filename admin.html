@@ -30,9 +30,10 @@
     <div class="admin-grid">
       <!-- Form tambah -->
       <div class="panel">
-        <h2>➕ Tambah Jam Tangan</h2>
+        <h2 id="formTitle">➕ Tambah Jam Tangan</h2>
         <div class="alert" id="alertBox"></div>
         <form id="watchForm">
+          <input type="hidden" id="editId" value="" />
           <div class="form-row">
             <div class="form-group">
               <label for="merek">Merek *</label>
@@ -71,18 +72,32 @@
             <img id="imgPreview" class="img-preview" alt="Pratinjau foto" />
           </div>
 
-          <button type="submit" class="btn btn-primary" style="width:100%;">Simpan Jam Tangan</button>
+          <div class="form-row" style="gap:10px;">
+            <button type="submit" id="submitBtn" class="btn btn-primary" style="width:100%;">Simpan Jam Tangan (POST)</button>
+            <button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none;">Batal</button>
+          </div>
         </form>
       </div>
 
       <!-- Daftar jam custom -->
       <div class="panel">
-        <h2>🗂️ Jam Tangan yang Ditambahkan</h2>
-        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <h2 style="margin-bottom:0;">🗂️ Jam Tangan yang Ditambahkan</h2>
+          <button type="button" id="reloadBtn" class="btn btn-outline" style="padding:6px 12px;font-size:0.8rem;">🔄 Muat Ulang (GET)</button>
+        </div>
+        <p style="color:var(--muted);font-size:0.85rem;margin:10px 0 14px;">
           Hanya menampilkan item yang Anda tambahkan lewat panel ini.
         </p>
         <div class="admin-list" id="adminList"></div>
       </div>
+    </div>
+
+    <div class="panel" style="margin-top:24px;">
+      <h2>📡 Log Aktivitas API</h2>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">
+        Riwayat operasi GET / POST / PUT / PATCH / DELETE yang dijalankan di panel ini (disimulasikan di localStorage).
+      </p>
+      <ul class="api-log" id="apiLog"></ul>
     </div>
   </main>
 

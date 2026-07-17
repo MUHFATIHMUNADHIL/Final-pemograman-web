@@ -861,15 +861,41 @@ a { color: inherit; text-decoration: none; }
 .admin-item .info { flex: 1; min-width: 0; }
 .admin-item .info strong { display: block; font-size: 0.9rem; }
 .admin-item .info small { color: var(--muted); }
-.admin-item button {
-  background: rgba(229,72,77,0.15);
-  border: 1px solid var(--danger);
-  color: var(--danger);
+.admin-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.admin-item-actions button {
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 6px 9px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
+.admin-item-actions .btn-edit { border-color: var(--accent); background: rgba(194,166,51,0.15); }
+.admin-item-actions .btn-patch { border-color: #3c78aa; background: rgba(60,120,170,0.15); }
+.admin-item-actions .btn-delete { border-color: var(--danger); background: rgba(229,72,77,0.15); }
+
+/* Log aktivitas API */
+.api-log { list-style: none; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.api-log-item {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+.api-log-item code { color: var(--muted); font-size: 0.78rem; }
+.api-log-item .log-msg { color: var(--text); flex: 1; min-width: 120px; }
+.api-log-item .log-time { color: var(--muted); font-size: 0.72rem; }
+.method-badge {
+  font-weight: 700; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+.api-log-item.method-get .method-badge { background: rgba(60,120,170,0.2); color: #6ea8dc; }
+.api-log-item.method-post .method-badge { background: rgba(70,177,123,0.2); color: var(--success); }
+.api-log-item.method-put .method-badge { background: rgba(194,166,51,0.2); color: var(--accent); }
+.api-log-item.method-patch .method-badge { background: rgba(255,159,67,0.2); color: #ff9f43; }
+.api-log-item.method-delete .method-badge { background: rgba(229,72,77,0.2); color: var(--danger); }
 .img-preview {
   width: 100%;
   aspect-ratio: 4/3;
